@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Event Creation Chatbot</title>
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <div class="app">
+    <section class="chat-pane">
+      <header class="chat-header">
+        <h1>Event Creation Chatbot</h1>
+        <span id="conn-status" class="conn-status">connecting…</span>
+      </header>
+      <div id="messages" class="messages"></div>
+      <form id="composer" class="composer">
+        <input
+          id="user-input"
+          type="text"
+          autocomplete="off"
+          placeholder="Describe your event or answer the assistant…"
+          required
+        />
+        <button type="submit">Send</button>
+      </form>
+    </section>
+
+    <aside class="draft-pane">
+      <header class="draft-header">
+        <h2>Draft progress</h2>
+        <span id="draft-count" class="draft-count">0 / 14 required</span>
+      </header>
+      <div id="draft-fields" class="draft-fields">
+        <!-- populated by app.js -->
+      </div>
+    </aside>
+  </div>
+  <script src="/static/app.js"></script>
+</body>
+</html>

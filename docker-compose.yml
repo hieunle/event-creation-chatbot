@@ -1,0 +1,48 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: events
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build: .
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5.4-mini}
+      OPENAI_EMBEDDING_MODEL: ${OPENAI_EMBEDDING_MODEL:-text-embedding-3-small}
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/events
+      CHECKPOINT_DATABASE_URL: postgresql://postgres:postgres@postgres:5432/events
+      CHROMA_PERSIST_PATH: /data/chroma
+      CHROMA_COLLECTION: events
+    ports:
+      - "8000:8000"
+    volumes:
+      - chromadata:/data/chroma
+
+  web:
+    build: ./web
+    depends_on:
+      - app
+    environment:
+      PYTHON_BACKEND_URL: http://app:8000
+    ports:
+      - "3000:3000"
+
+volumes:
+  pgdata:
+  chromadata:

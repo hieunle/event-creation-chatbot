@@ -1,0 +1,17 @@
+node_modules
+.next
+out
+build
+coverage
+.env*
+.git
+.gitignore
+.DS_Store
+*.log
+*.tsbuildinfo
+next-env.d.ts
+.vercel
+README.md
+AGENTS.md
+CLAUDE.md
+pnpm-workspace.yaml
