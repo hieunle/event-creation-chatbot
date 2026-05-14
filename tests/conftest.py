@@ -54,12 +54,12 @@ async def repository(sessionmaker_) -> EventRepository:
 def sample_event_kwargs() -> dict[str, Any]:
     return dict(
         name="Kyoto Jazz Night",
-        date=date(2026, 3, 10),
+        date=date(2026, 10, 10),
         time=time(19, 0),
         description="A live jazz performance in Kyoto.",
         seat_types={"VIP": 10000, "Regular": 5000},
-        purchase_start=date(2026, 1, 1),
-        purchase_end=date(2026, 3, 9),
+        purchase_start=date(2026, 6, 1),
+        purchase_end=date(2026, 10, 9),
         ticket_limit=4,
         venue_name="Kyoto Concert Hall",
         venue_address="123 Sakyo-ku, Kyoto",

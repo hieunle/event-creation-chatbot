@@ -31,8 +31,8 @@ class TestInsert:
         self, repository, sample_event_kwargs
     ):
         await repository.insert(EventCreate(**sample_event_kwargs))
-        sample_event_kwargs["date"] = date(2026, 4, 10)
-        sample_event_kwargs["purchase_end"] = date(2026, 4, 9)
+        sample_event_kwargs["date"] = date(2026, 11, 10)
+        sample_event_kwargs["purchase_end"] = date(2026, 11, 9)
         # Second insert must NOT raise
         await repository.insert(EventCreate(**sample_event_kwargs))
 
@@ -61,7 +61,7 @@ class TestQuery:
         await repository.insert(EventCreate(**sample_event_kwargs))
 
         kw2 = {**sample_event_kwargs, "name": "Tech Meetup",
-               "date": date(2026, 4, 1), "purchase_end": date(2026, 3, 31),
+               "date": date(2026, 11, 1), "purchase_end": date(2026, 10, 31),
                "category": "Meetup"}
         await repository.insert(EventCreate(**kw2))
 
@@ -72,19 +72,19 @@ class TestQuery:
     async def test_query_by_date_range(self, repository, sample_event_kwargs):
         await repository.insert(EventCreate(**sample_event_kwargs))
         kw2 = {**sample_event_kwargs, "name": "Other",
-               "date": date(2026, 6, 1), "purchase_end": date(2026, 5, 1)}
+               "date": date(2026, 12, 1), "purchase_end": date(2026, 11, 1)}
         await repository.insert(EventCreate(**kw2))
 
-        march = await repository.query(
-            EventQueryFilter(date_from=date(2026, 3, 1), date_to=date(2026, 3, 31))
+        october = await repository.query(
+            EventQueryFilter(date_from=date(2026, 10, 1), date_to=date(2026, 10, 31))
         )
-        assert len(march) == 1
-        assert march[0].date == date(2026, 3, 10)
+        assert len(october) == 1
+        assert october[0].date == date(2026, 10, 10)
 
     async def test_get_many_preserves_order(self, repository, sample_event_kwargs):
         a = await repository.insert(EventCreate(**sample_event_kwargs))
         kw2 = {**sample_event_kwargs, "name": "Second",
-               "date": date(2026, 4, 1), "purchase_end": date(2026, 3, 31)}
+               "date": date(2026, 11, 1), "purchase_end": date(2026, 10, 31)}
         b = await repository.insert(EventCreate(**kw2))
         got = await repository.get_many([b.id, a.id])
         assert [e.id for e in got] == [b.id, a.id]

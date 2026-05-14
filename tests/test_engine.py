@@ -113,16 +113,16 @@ class TestEngineFlow:
         engine = _make_engine(repository, memory, script=[
             _tool_call("update_event_draft",
                        {"draft": {"name": "Kyoto Jazz Night",
-                                  "date": "2026-03-10"}}, "tc1"),
+                                  "date": "2026-10-10"}}, "tc1"),
             _final_response("missing_field", "Got it. What time?"),
             _tool_call("update_event_draft",
-                       {"draft": {"date": "2026-03-12"}}, "tc2"),
+                       {"draft": {"date": "2026-10-12"}}, "tc2"),
             _final_response("update_previous_field",
-                            "Updated the date to 2026-03-12. What time?"),
+                            "Updated the date to 2026-10-12. What time?"),
         ])
-        await engine.handle("sess-3", "Kyoto Jazz Night on March 10")
-        r2 = await engine.handle("sess-3", "actually, change the date to March 12")
-        assert r2["draft"].date.isoformat() == "2026-03-12"
+        await engine.handle("sess-3", "Kyoto Jazz Night on October 10")
+        r2 = await engine.handle("sess-3", "actually, change the date to October 12")
+        assert r2["draft"].date.isoformat() == "2026-10-12"
         assert r2["response"].scenario == "update_previous_field"
 
     async def test_success_save_scenario(self, repository, memory, sample_event_kwargs):

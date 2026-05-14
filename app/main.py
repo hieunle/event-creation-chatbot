@@ -3,11 +3,9 @@ from __future__ import annotations
 
 import logging
 from contextlib import asynccontextmanager
-from pathlib import Path
 
 from fastapi import FastAPI
-from fastapi.responses import FileResponse, JSONResponse
-from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
 from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
@@ -21,7 +19,6 @@ from app.services.memory import EventMemory, build_openai_embedding_function
 from app.services.repository import EventRepository
 
 log = logging.getLogger(__name__)
-STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 
 
 @asynccontextmanager
@@ -75,22 +72,11 @@ app.include_router(session_router)
 
 @app.get("/")
 async def index() -> JSONResponse:
-    # Primary UI is the Next.js app on :3000. The legacy plain-JS UI remains
-    # available at /legacy for local fallback.
     return JSONResponse({
         "service": "event-creation-chatbot API",
         "ui": "http://localhost:3000",
-        "legacy_ui": "/legacy",
         "docs": "/docs",
     })
-
-
-@app.get("/legacy")
-async def legacy() -> FileResponse:
-    return FileResponse(STATIC_DIR / "index.html")
-
-
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
 @app.get("/health")

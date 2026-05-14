@@ -12,12 +12,12 @@ def _event_read(**overrides) -> EventRead:
     defaults = dict(
         id=1,
         name="Kyoto Jazz Night",
-        date=date(2026, 3, 10),
+        date=date(2026, 10, 10),
         time=time(19, 0),
         description="A live jazz performance in Kyoto.",
         seat_types={"VIP": 10000},
-        purchase_start=date(2026, 1, 1),
-        purchase_end=date(2026, 3, 9),
+        purchase_start=date(2026, 6, 1),
+        purchase_end=date(2026, 10, 9),
         ticket_limit=4,
         venue_name="Kyoto Concert Hall",
         venue_address="123 Sakyo-ku, Kyoto",
@@ -47,7 +47,7 @@ class TestIndexAndSearch:
         jazz = _event_read(id=1, name="Kyoto Jazz Night",
                            description="Live jazz performance")
         food = _event_read(id=2, name="Osaka Food Festival",
-                           date=date(2026, 4, 1), purchase_end=date(2026, 3, 31),
+                           date=date(2026, 11, 1), purchase_end=date(2026, 10, 31),
                            description="Street food tasting",
                            venue_name="Osaka Park", category="Festival")
         memory.index(jazz)

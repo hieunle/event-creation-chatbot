@@ -59,11 +59,11 @@ class TestUpdateEventDraft:
     async def test_sets_fields_first_time(self, tools_):
         tool = _by_name(tools_, "update_event_draft")
         cmd = _invoke_update(tool, {"name": "Kyoto Jazz Night",
-                                    "date": date(2026, 3, 10).isoformat(),
+                                    "date": date(2026, 10, 10).isoformat(),
                                     "time": time(19, 0).isoformat()})
         updated_draft = cmd.update["draft"]
         assert updated_draft.name == "Kyoto Jazz Night"
-        assert updated_draft.date == date(2026, 3, 10)
+        assert updated_draft.date == date(2026, 10, 10)
         # ToolMessage payload as JSON in the appended message
         msg = cmd.update["messages"][0]
         import json
@@ -75,15 +75,36 @@ class TestUpdateEventDraft:
     async def test_revision_includes_previous(self, tools_):
         tool = _by_name(tools_, "update_event_draft")
         # First, set a draft with a date
-        current = EventDraft(name="Kyoto Jazz Night", date=date(2026, 3, 10))
-        cmd = _invoke_update(tool, {"date": date(2026, 3, 12).isoformat()},
+        current = EventDraft(name="Kyoto Jazz Night", date=date(2026, 10, 10))
+        cmd = _invoke_update(tool, {"date": date(2026, 10, 12).isoformat()},
                              current_draft=current)
         import json
         payload = json.loads(cmd.update["messages"][0].content)
         date_field = payload["fields"]["date"]
         assert date_field["status"] == "set"
-        assert date_field["previous"] == "2026-03-10"
-        assert cmd.update["draft"].date == date(2026, 3, 12)
+        assert date_field["previous"] == "2026-10-10"
+        assert cmd.update["draft"].date == date(2026, 10, 12)
+
+    async def test_past_event_date_marked_invalid(self, tools_):
+        tool = _by_name(tools_, "update_event_draft")
+        cmd = _invoke_update(tool, {"date": date(2020, 1, 1).isoformat()})
+        import json
+        payload = json.loads(cmd.update["messages"][0].content)
+        assert payload["fields"]["date"]["status"] == "invalid"
+        assert "past" in payload["fields"]["date"]["reason"]
+        # Draft is reverted — past date not stored
+        assert cmd.update["draft"].date is None
+
+    async def test_ticket_limit_over_capacity_marked_invalid(self, tools_):
+        tool = _by_name(tools_, "update_event_draft")
+        current = EventDraft(capacity=100)
+        cmd = _invoke_update(tool, {"ticket_limit": 500}, current_draft=current)
+        import json
+        payload = json.loads(cmd.update["messages"][0].content)
+        assert payload["fields"]["ticket_limit"]["status"] == "invalid"
+        assert "capacity" in payload["fields"]["ticket_limit"]["reason"]
+        assert cmd.update["draft"].ticket_limit is None
+        assert cmd.update["draft"].capacity == 100
 
     async def test_unchanged_when_same_value(self, tools_):
         tool = _by_name(tools_, "update_event_draft")
@@ -250,7 +271,7 @@ class TestQueryAndSearch:
         from app.models.event import EventCreate
         await repository.insert(EventCreate(**sample_event_kwargs))
         kw2 = {**sample_event_kwargs, "name": "Meetup",
-               "date": date(2026, 4, 1), "purchase_end": date(2026, 3, 31),
+               "date": date(2026, 11, 1), "purchase_end": date(2026, 10, 31),
                "category": "Meetup"}
         await repository.insert(EventCreate(**kw2))
 

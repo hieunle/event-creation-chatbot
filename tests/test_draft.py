@@ -54,7 +54,7 @@ class TestEventCreate:
         EventCreate(**sample_event_kwargs)
 
     def test_purchase_end_after_event_date_rejected(self, sample_event_kwargs):
-        sample_event_kwargs["purchase_end"] = date(2026, 3, 15)  # after event
+        sample_event_kwargs["purchase_end"] = date(2026, 10, 15)  # after event
         with pytest.raises(ValidationError) as exc:
             EventCreate(**sample_event_kwargs)
         assert "purchase_end" in str(exc.value)
@@ -92,6 +92,31 @@ class TestEventCreate:
         with pytest.raises(ValidationError) as exc:
             EventCreate(**sample_event_kwargs)
         assert "venue_name" in str(exc.value)
+
+    def test_past_event_date_rejected(self, sample_event_kwargs):
+        sample_event_kwargs["date"] = date(2020, 1, 1)
+        sample_event_kwargs["purchase_start"] = date(2019, 12, 1)
+        sample_event_kwargs["purchase_end"] = date(2019, 12, 31)
+        with pytest.raises(ValidationError) as exc:
+            EventCreate(**sample_event_kwargs)
+        assert "past" in str(exc.value)
+
+    def test_ticket_limit_exceeding_capacity_rejected(self, sample_event_kwargs):
+        sample_event_kwargs["ticket_limit"] = 10
+        sample_event_kwargs["capacity"] = 5
+        with pytest.raises(ValidationError) as exc:
+            EventCreate(**sample_event_kwargs)
+        assert "capacity" in str(exc.value)
+
+    def test_whitespace_only_name_rejected(self, sample_event_kwargs):
+        sample_event_kwargs["name"] = "   "
+        with pytest.raises(ValidationError):
+            EventCreate(**sample_event_kwargs)
+
+    def test_name_is_trimmed(self, sample_event_kwargs):
+        sample_event_kwargs["name"] = "  Kyoto Jazz Night  "
+        event = EventCreate(**sample_event_kwargs)
+        assert event.name == "Kyoto Jazz Night"
 
 
 class TestDraftToCreate:

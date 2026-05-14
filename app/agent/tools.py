@@ -158,6 +158,46 @@ def _format_parse_error(field_name: str, exc: Exception) -> str:
     return f"{base} — {hint}" if hint else base
 
 
+def _check_draft_invariants(
+    merged: dict[str, Any],
+    current: EventDraft,
+    fields_result: dict[str, dict[str, Any]],
+) -> None:
+    """Apply EventCreate-style cross-field rules to the partial draft.
+
+    Each rule fires only when its inputs are present in `merged`. Offending
+    fields are tagged `invalid` and reverted to the current draft's value so
+    the agent can re-ask just that field. Mutates `merged` and `fields_result`
+    in place.
+    """
+    today = date_type.today()
+
+    def _invalidate(field: str, reason: str) -> None:
+        fields_result[field] = {
+            "status": "invalid",
+            "value": _json_safe(merged.get(field)),
+            "reason": reason,
+        }
+        merged[field] = getattr(current, field, None)
+
+    date = merged.get("date")
+    if date is not None and date < today:
+        _invalidate("date", f"event date must not be in the past (today is {today.isoformat()})")
+
+    p_start = merged.get("purchase_start")
+    p_end = merged.get("purchase_end")
+    date = merged.get("date")  # re-read in case _invalidate reverted it
+    if p_start is not None and p_end is not None and p_end < p_start:
+        _invalidate("purchase_end", "purchase_end must be on or after purchase_start")
+    elif p_end is not None and date is not None and p_end > date:
+        _invalidate("purchase_end", "purchase_end must be on or before the event date")
+
+    ticket_limit = merged.get("ticket_limit")
+    capacity = merged.get("capacity")
+    if ticket_limit is not None and capacity is not None and ticket_limit > capacity:
+        _invalidate("ticket_limit", "ticket_limit must be <= capacity")
+
+
 def _build_draft_with_validation(
     merged: dict[str, Any],
     current: EventDraft,
@@ -274,6 +314,12 @@ def build_tools(repository: EventRepository, memory: EventMemory) -> list[BaseTo
                     ),
                 }
                 merged[target] = getattr(current, target)
+
+        # Phase 3.5: cross-field domain checks (past date, purchase window,
+        # ticket_limit <= capacity). Fires whenever the relevant fields are
+        # present so the agent can correct issues mid-conversation instead of
+        # only at save time.
+        _check_draft_invariants(merged, current, fields_result)
 
         # Phase 4: build the new draft. If a field violates EventDraft's
         # constraints (bad email, negative ticket_limit, etc.), Pydantic

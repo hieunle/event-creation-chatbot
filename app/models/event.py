@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from datetime import date as date_type, datetime, time as time_type
-from typing import Optional
+from typing import Annotated, Optional
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, StringConstraints, model_validator
 from sqlalchemy import (
     JSON,
     Boolean,
@@ -19,6 +19,9 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+
+_Trimmed = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
 
 
 REQUIRED_FIELDS: tuple[str, ...] = (
@@ -44,10 +47,10 @@ class EventDraft(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    name: Optional[str] = Field(default=None, description="Event name, e.g., 'Kyoto Jazz Night'")
+    name: Optional[_Trimmed] = Field(default=None, description="Event name, e.g., 'Kyoto Jazz Night'")
     date: Optional[date_type] = Field(default=None, description="Event date in YYYY-MM-DD")
     time: Optional[time_type] = Field(default=None, description="Event time in HH:MM (24-hour)")
-    description: Optional[str] = Field(default=None, description="Free-text event description")
+    description: Optional[_Trimmed] = Field(default=None, description="Free-text event description")
     seat_types: Optional[dict[str, int]] = Field(
         default=None,
         description='Map of seat label to price, e.g., {"VIP": 10000, "Regular": 5000}',
@@ -55,13 +58,13 @@ class EventDraft(BaseModel):
     purchase_start: Optional[date_type] = Field(default=None, description="Ticket purchase start date")
     purchase_end: Optional[date_type] = Field(default=None, description="Ticket purchase end date")
     ticket_limit: Optional[int] = Field(default=None, ge=1, description="Max tickets per person")
-    venue_name: Optional[str] = Field(default=None)
-    venue_address: Optional[str] = Field(default=None)
+    venue_name: Optional[_Trimmed] = Field(default=None)
+    venue_address: Optional[_Trimmed] = Field(default=None)
     capacity: Optional[int] = Field(default=None, ge=1)
-    organizer_name: Optional[str] = Field(default=None)
+    organizer_name: Optional[_Trimmed] = Field(default=None)
     organizer_email: Optional[EmailStr] = Field(default=None)
-    category: Optional[str] = Field(default=None, description="e.g., Concert, Conference")
-    language: Optional[str] = Field(default=None, description="e.g., Japanese, English")
+    category: Optional[_Trimmed] = Field(default=None, description="e.g., Concert, Conference")
+    language: Optional[_Trimmed] = Field(default=None, description="e.g., Japanese, English")
     is_recurring: Optional[bool] = Field(default=None)
     recurrence_frequency: Optional[str] = Field(
         default=None, description="e.g., weekly, monthly; required when is_recurring=True"
@@ -80,21 +83,21 @@ class EventCreate(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    name: str = Field(min_length=1, max_length=255)
+    name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=255)]
     date: date_type
     time: time_type
-    description: Optional[str] = None
+    description: Optional[Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]] = None
     seat_types: dict[str, int] = Field(min_length=1)
     purchase_start: date_type
     purchase_end: date_type
     ticket_limit: int = Field(ge=1)
-    venue_name: str = Field(min_length=1, max_length=255)
-    venue_address: str = Field(min_length=1, max_length=255)
+    venue_name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=255)]
+    venue_address: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=255)]
     capacity: int = Field(ge=1)
-    organizer_name: str = Field(min_length=1, max_length=255)
+    organizer_name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=255)]
     organizer_email: EmailStr
-    category: str = Field(min_length=1, max_length=100)
-    language: str = Field(min_length=1, max_length=50)
+    category: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
+    language: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=50)]
     is_recurring: bool = False
     recurrence_frequency: Optional[str] = None
     is_online: bool = False
@@ -120,6 +123,18 @@ class EventCreate(BaseModel):
             raise ValueError("recurrence_frequency is required when is_recurring is True")
         return self
 
+    @model_validator(mode="after")
+    def _check_future_event(self) -> "EventCreate":
+        if datetime.combine(self.date, self.time) < datetime.now():
+            raise ValueError("event date/time must not be in the past")
+        return self
+
+    @model_validator(mode="after")
+    def _check_ticket_limit_within_capacity(self) -> "EventCreate":
+        if self.ticket_limit > self.capacity:
+            raise ValueError("ticket_limit must be <= capacity")
+        return self
+
 
 class EventRead(EventCreate):
     """Event with persisted identifiers — what comes back from the repository."""
@@ -127,6 +142,11 @@ class EventRead(EventCreate):
     id: int
     created_at: datetime
     updated_at: datetime
+
+    @model_validator(mode="after")
+    def _check_future_event(self) -> "EventRead":  # type: ignore[override]
+        # Historical rows are allowed to be in the past; only creation enforces this.
+        return self
 
 
 class Base(DeclarativeBase):
@@ -141,6 +161,7 @@ class EventDB(Base):
         CheckConstraint("purchase_end <= date", name="events_purchase_before_event"),
         CheckConstraint("ticket_limit > 0", name="events_ticket_limit_positive"),
         CheckConstraint("capacity > 0", name="events_capacity_positive"),
+        CheckConstraint("ticket_limit <= capacity", name="events_ticket_limit_within_capacity"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
